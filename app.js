@@ -4,7 +4,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose=require("mongoose");
-const md5= require("md5");
+const bcrypt= require("bcrypt");
+const saltRounds=10;
 
 mongoose.connect("mongodb://localhost:27017/userDB");
 
@@ -26,17 +27,23 @@ const userSchema= mongoose.Schema({
 const User= mongoose.model("User",userSchema);
 
 app.post("/register",function(req,res){
-    const newUser= new User({
-        email:req.body.username,
-        password: md5(req.body.password)
+    
+
+    bcrypt.hash(req.body.password,saltRounds,function(err,hash){
+        const newUser= new User({
+            email:req.body.username,
+            password: hash
+        });
+        newUser.save(function(err){
+            if(err)
+            console.log(err);
+            else
+            res.render("secrets");
+        });
     });
+
     //console.log(newUser);
-    newUser.save(function(err){
-        if(err)
-        console.log(err);
-        else
-        res.render("secrets");
-    });
+    
 });
 
 app.post("/login",function(req,res){
@@ -48,15 +55,17 @@ app.post("/login",function(req,res){
         console.log(err);
         else
         {
-            //console.log(result.password);
-            if(result.password ===md5(req.body.password))
-            res.render("secrets");
-            else
-            res.send("INVALID LOGIN");
+            bcrypt.compare(req.body.password, result.password,function(err,resultbcrypt){
+                if(resultbcrypt===true)
+                res.render("secrets");
+                else
+                res.send("INVALID LOGIN");
+            });
         }
         
     });
 });
+
 
 
 app.get("/",function(req,res){
@@ -77,5 +86,5 @@ app.get("/register",function(req,res){
 
 
 app.listen(3000,function(){
-    console.log("Connected")
+    console.log("Connected");
 });
